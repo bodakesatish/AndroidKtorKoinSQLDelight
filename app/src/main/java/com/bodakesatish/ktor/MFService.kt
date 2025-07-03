@@ -20,68 +20,10 @@ import io.ktor.client.plugins.logging.* // Import the Logging plugin
  * this class might be refactored into a DataSource, and the HttpClient
  * would typically be provided via dependency injection.
  */
-class MFService {
+class MFService(private val httpClient: HttpClient) {
 
     // Initialize the Ktor HttpClient.
     // The client is configured once when an instance of MFService is created.
-    private val client = HttpClient(engineFactory = Android) { // Use the Android engine for Ktor
-        // Install the ContentNegotiation plugin to handle JSON serialization/deserialization.
-        install(ContentNegotiation) {
-            json(Json { // Configure Kotlinx Serialization for JSON
-                ignoreUnknownKeys =
-                    true // Allows skipping JSON fields that are not defined in our data classes
-                prettyPrint =
-                    true       // Formats the JSON output for better readability (useful for debugging)
-                isLenient =
-                    true         // Allows parsing JSON that might be slightly non-compliant with strict JSON rules
-            })
-        }
-        // Install the Logging plugin to log HTTP requests and responses.
-        // This is very useful for debugging network interactions.
-        install(Logging) {
-            // You can customize the logger, level, and what gets logged.
-
-            // 1. Specify a Logger instance.
-            //    By default, Ktor uses its own logger. For Android, it's common to integrate with Logcat.
-            logger =
-                object : Logger { // Create an anonymous object implementing Ktor's Logger interface
-                    override fun log(message: String) {
-                        // Log messages with the tag "KtorClient" and error level (you can change the level, e.g., Log.d for debug).
-                        Log.e("KtorClient", message)
-                    }
-                }
-            // Example of using a custom logger from a library like Timber:
-            // logger = object : Logger {
-            //     override fun log(message: String) {
-            //         Timber.tag("KtorClient").d(message)
-            //     }
-            // }
-
-            // 2. Set the Logging Level.
-            //    This determines how much detail is logged.
-            level = LogLevel.ALL // Logs everything:
-            // - Request and response status lines (e.g., "200 OK", "GET /path HTTP/1.1")
-            // - Request and response headers (e.g., "Content-Type: application/json")
-            // - Request and response bodies (the actual data being sent/received)
-            // - Common informational messages from Ktor
-
-            // Common LogLevel options:
-            // level = LogLevel.INFO  // Logs request and response status lines.
-            // level = LogLevel.HEADERS // Logs status lines and headers.
-            // level = LogLevel.BODY    // Logs status lines, headers, and bodies (often used during development).
-            // level = LogLevel.NONE    // Disables logging entirely.
-
-            // 3. Filter logs (optional).
-            //    You can specify a filter to log only specific requests based on their properties.
-            // filter { request -> // 'request' is an HttpRequestBuilder
-            //     request.url.host == "api.example.com" // Example: Only log requests to "api.example.com"
-            // }
-
-            // 4. Sanitize sensitive headers (optional, good for production).
-            //    Prevents logging the values of sensitive headers like Authorization tokens.
-            // sanitizeHeader { header -> header == HttpHeaders.Authorization } // Returns true if the header should be sanitized
-        }
-    }
 
     /**
      * Fetches a list of Mutual Fund schemes from the API.
@@ -92,7 +34,7 @@ class MFService {
     suspend fun getMFSchemes(): List<MFScheme> {
         return try {
             // Make an HTTP GET request to the specified URL.
-            val response = client.get("https://api.mfapi.in/mf")
+            val response = httpClient.get("https://api.mfapi.in/mf")
 
             // Deserialize the JSON response body directly into a List of MFScheme objects.
             // Ktor uses the ContentNegotiation plugin (configured with Kotlinx Serialization) for this.
@@ -120,7 +62,10 @@ class MFService {
      * and manual closing might be handled differently (e.g., when a DI scope is destroyed).
      */
     fun closeClient() {
-        client.close()
-        // client.engine.close() // More forceful, closes the underlying engine immediately
+        // Only close if the client is active.
+        // Ktor's client.close() is idempotent (safe to call multiple times).
+        httpClient.close()
+        Log.d("MFService", "Ktor HttpClient closed.")
+
     }
 }

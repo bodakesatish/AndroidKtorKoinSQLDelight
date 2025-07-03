@@ -59,6 +59,14 @@ dependencies {
 
     implementation(libs.androidx.lifecycle.viewmodel.ktx)
 
+    // Koin for Android
+    implementation(libs.koin.android)
+    // Optional: Koin for Ktor (can be useful for managing Ktor client if you have complex needs)
+    // implementation("io.insert-koin:koin-ktor:$koinVersion")
+
+    // For testing with Koin (example)
+    // testImplementation("io.insert-koin:koin-test-junit4:$koinVersion")
+
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
