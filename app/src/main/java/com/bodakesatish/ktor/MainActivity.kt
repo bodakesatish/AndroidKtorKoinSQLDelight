@@ -3,13 +3,17 @@ package com.bodakesatish.ktor
 import android.os.Bundle
 import android.view.View
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.bodakesatish.ktor.databinding.ActivityMainBinding
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.launch
 import org.koin.androidx.viewmodel.ext.android.viewModel
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
+
     // Inject MainViewModel using Koin's delegate
     private val viewModel: MainViewModel by viewModel()
     private lateinit var mfSchemeAdapter: MFSchemeAdapter
@@ -21,6 +25,13 @@ class MainActivity : AppCompatActivity() {
 
         setupRecyclerView()
         observeViewModel()
+        setupSwipeToRefresh()
+    }
+
+    private fun setupSwipeToRefresh() {
+        binding.swipeRefreshLayout.setOnRefreshListener {
+            viewModel.refreshSchemes()
+        }
     }
 
     private fun setupRecyclerView() {
@@ -32,29 +43,36 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun observeViewModel() {
-        viewModel.mfSchemes.observe(this) { schemes ->
-            mfSchemeAdapter.updateSchemes(schemes)
-            binding.recyclerView.visibility = View.VISIBLE // Hide list when loading
-            binding.errorTextView.visibility = View.GONE
-            // Show list only if not loading and no error
-                binding.recyclerView.visibility = if (schemes.isNotEmpty()) View.VISIBLE else View.GONE
-        }
+        lifecycleScope.launch {
+            viewModel.uiState.collectLatest { state ->
+                binding.progressBar.visibility =
+                    if (state.isLoading && !binding.swipeRefreshLayout.isRefreshing) View.VISIBLE else View.GONE
+                binding.swipeRefreshLayout.isRefreshing =
+                    state.isLoading // Manage SwipeRefresh animation
 
-        viewModel.isLoading.observe(this) { isLoading ->
-            binding.progressBar.visibility = if (isLoading) View.VISIBLE else View.GONE
-            if (isLoading) {
-                binding.recyclerView.visibility = View.GONE // Hide list when loading
-                binding.errorTextView.visibility = View.GONE // Hide error when loading
-            }
-        }
+                if (state.errorMessage != null) {
+                    binding.errorTextView.text = state.errorMessage
+                    binding.errorTextView.visibility = View.VISIBLE
+                    binding.recyclerView.visibility = View.GONE
+                } else {
+                    binding.errorTextView.visibility = View.GONE
+                }
 
-        viewModel.errorMessage.observe(this) { errorMessage ->
-            if (!errorMessage.isNullOrEmpty()) {
-                binding.errorTextView.text = errorMessage
-                binding.errorTextView.visibility = View.VISIBLE
-                binding.recyclerView.visibility = View.GONE // Hide list on error
-            } else {
-                binding.errorTextView.visibility = View.GONE
+                if (!state.isLoading && state.errorMessage == null) {
+                    mfSchemeAdapter.updateSchemes(state.schemes)
+                    binding.recyclerView.visibility =
+                        if (state.schemes.isNotEmpty()) View.VISIBLE else View.GONE
+                    // If schemes are empty and no error, you might want to show a "No data" message
+                    // binding.emptyView.visibility = if (state.schemes.isEmpty()) View.VISIBLE else View.GONE
+                } else if (state.isLoading || state.errorMessage != null) {
+                    binding.recyclerView.visibility = View.GONE
+                }
+
+                // Ensure SwipeRefreshLayout stops refreshing when loading is complete,
+                // regardless of whether it was triggered by swipe or initial load.
+                if (!state.isLoading && binding.swipeRefreshLayout.isRefreshing) {
+                    binding.swipeRefreshLayout.isRefreshing = false
+                }
             }
         }
     }

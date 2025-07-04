@@ -1,0 +1,33 @@
+CREATE TABLE MFSchemeEntity (
+    schemeCode INTEGER NOT NULL PRIMARY KEY, -- Using INTEGER for schemeCode as it's an ID
+    schemeName TEXT NOT NULL,
+--     isinGrowth TEXT, -- Nullable as per your data class
+--     isinDivReinvestment TEXT, -- Nullable
+    lastFetched INTEGER NOT NULL -- Timestamp to know when data was last updated
+);
+-- SQLDelight will generate Kotlin functions based on these queries
+
+-- Get all schemes
+selectAll:
+SELECT *
+FROM MFSchemeEntity
+ORDER BY schemeName ASC;
+
+-- Get a specific scheme by its code
+selectByCode:
+SELECT *
+FROM MFSchemeEntity
+WHERE schemeCode = :schemeCode;
+
+-- Insert a new scheme or replace if it already exists (based on schemeCode)
+insertOrReplace:
+INSERT OR REPLACE INTO MFSchemeEntity(schemeCode, schemeName, lastFetched)--, isinGrowth, isinDivReinvestment, lastFetched)
+VALUES (?, ?,?);--, ?, ?, ?);
+
+-- Delete all schemes (useful for refreshing cache)
+deleteAll:
+DELETE FROM MFSchemeEntity;
+
+-- Count of schemes (example utility query)
+count:
+SELECT COUNT(*) FROM MFSchemeEntity;

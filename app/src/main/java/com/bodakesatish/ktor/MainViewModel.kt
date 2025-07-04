@@ -1,49 +1,77 @@
 package com.bodakesatish.ktor
 
 import android.util.Log
-import androidx.lifecycle.LiveData
-import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.bodakesatish.ktor.repository.MFSchemeRepository
+import com.bodakesatish.ktor.repository.Resource
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 
+// UI State data class (you might have this from previous refactoring)
+data class SchemesUiState(
+    val schemes: List<MFScheme> = emptyList(),
+    val isLoading: Boolean = false,
+    val errorMessage: String? = null
+)
+
 // MFService will be injected by Koin
-class MainViewModel(private val mfService: MFService) : ViewModel() {
+class MainViewModel(
+    private val mfRepository: MFSchemeRepository // Inject Repository
+) : ViewModel() {
 
-    private val _mfSchemes = MutableLiveData<List<MFScheme>>()
-    val mfSchemes: LiveData<List<MFScheme>> = _mfSchemes
 
-    private val _errorMessage = MutableLiveData<String>()
-    val errorMessage: LiveData<String> = _errorMessage
-
-    private val _isLoading = MutableLiveData<Boolean>()
-    val isLoading: LiveData<Boolean> = _isLoading
+    private val _uiState = MutableStateFlow(SchemesUiState())
+    val uiState: StateFlow<SchemesUiState> = _uiState.asStateFlow()
 
     init {
         fetchMFSchemes()
     }
 
-    fun fetchMFSchemes() {
-        viewModelScope.launch {
-            _isLoading.value = true
-            _errorMessage.value = "" // Clear previous error messages
-            try {
-                val schemes = mfService.getMFSchemes() // Use the injected mfService
-                _mfSchemes.value = schemes
-                if (schemes.isEmpty()) {
-                    // Optional: Set a specific message if the list is empty but no network error
-                     _errorMessage.value = "No schemes found."
+    fun fetchMFSchemes(forceRefresh: Boolean = false) {
+        mfRepository.getSchemes(forceRefresh = forceRefresh)
+            .onEach { resource ->
+                _uiState.value = when (resource) {
+                    is Resource.Loading -> {
+                        _uiState.value.copy(isLoading = true, errorMessage = null)
+                    }
+                    is Resource.Success -> {
+                        _uiState.value.copy(
+                            isLoading = false,
+                            schemes = resource.data,
+                            errorMessage = if (resource.data.isEmpty() && !_uiState.value.isLoading) "No schemes found." else null
+                        )
+                    }
+                    is Resource.Error -> {
+                        _uiState.value.copy(
+                            isLoading = false,
+                            errorMessage = resource.message
+                            // Potentially keep displaying old data if available:
+                            // schemes = if (resource.data != null) resource.data else _uiState.value.schemes
+                        )
+                    }
                 }
-            } catch (e: Exception) {
-                // This catch block might be redundant if mfService.getMFSchemes() already handles
-                // its internal exceptions and returns an empty list or a wrapped error type.
-                // For simplicity here, we keep it as a fallback.
-                _errorMessage.value = "Error fetching MF schemes: ${e.message}"
-                _mfSchemes.value = emptyList() // Ensure list is empty on error
-                Log.e("MainViewModel", "Failed to fetch schemes", e)
-            } finally {
-                _isLoading.value = false
             }
+            .launchIn(viewModelScope) // Collect the Flow in the ViewModel's scope
+
+    }
+
+
+    // Example function for pull-to-refresh or explicit refresh button
+    fun refreshSchemes() {
+        fetchMFSchemes(forceRefresh = true)
+    }
+
+    fun clearLocalCache() {
+        viewModelScope.launch {
+            mfRepository.clearCache()
+            // Optionally, re-fetch or update UI to reflect empty state if desired
+            // fetchMFSchemes(forceRefresh = false) // This would try to fetch from network again if cache is empty
+            _uiState.value = _uiState.value.copy(schemes = emptyList(), errorMessage = "Cache cleared.")
         }
     }
 

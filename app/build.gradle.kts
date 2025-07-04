@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
+    alias(libs.plugins.sqldelight)
     alias(libs.plugins.kotlin.serialization)
 }
 
@@ -39,6 +40,18 @@ android {
     }
 }
 
+// Add this block for SQLDelight configuration
+sqldelight {
+    databases {
+        create("AppDatabase") { // This will be the generated database class name
+            packageName.set("com.bodakesatish.ktor.cache") // Package for generated database code
+            // You can specify source folders if your .sq files are not in the default location
+//             srcDirs.setFrom("src/main/db")
+        }
+    }
+}
+
+
 dependencies {
 
     implementation(libs.androidx.core.ktx)
@@ -59,8 +72,20 @@ dependencies {
 
     implementation(libs.androidx.lifecycle.viewmodel.ktx)
 
+    //SqlDelight
+//    implementation(libs.sqldelight.android)
+//    implementation(libs.sqldelight.coroutines)
+//    implementation(libs.sqldelight.runtime)
+//    implementation(libs.sqldelight.driver.android)
+
+    // SQLDelight
+    implementation("app.cash.sqldelight:android-driver:2.0.1") // Android specific driver
+    implementation("app.cash.sqldelight:coroutines-extensions:2.0.1") // For Flow support (optional but recommended)
+
+
     // Koin for Android
     implementation(libs.koin.android)
+    implementation(libs.androidx.swiperefreshlayout)
     // Optional: Koin for Ktor (can be useful for managing Ktor client if you have complex needs)
     // implementation("io.insert-koin:koin-ktor:$koinVersion")
 
