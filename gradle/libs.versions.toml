@@ -23,6 +23,9 @@ lifecycleViewmodelKtx = "2.8.4"
 
 kotlinSerialization = "1.9.23" # Usually same as Kotlin version, or check compatibility
 
+sqldelightver = "2.1.0"
+swiperefreshlayout = "1.1.0"
+
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
@@ -44,6 +47,11 @@ ktor-client-logging = { group ="io.ktor", name="ktor-client-logging", version.re
 
 androidx-lifecycle-viewmodel-ktx = { group = "androidx.lifecycle", name = "lifecycle-viewmodel-ktx", version.ref = "lifecycleViewmodelKtx" }
 
+sqldelight-android-driver = { group = "app.cash.sqldelight", name = "android-driver", version.ref = "sqldelightver" }
+sqldelight-coroutines-extensions = { group = "app.cash.sqldelight", name = "coroutines-extensions", version.ref = "sqldelightver" }
+androidx-swiperefreshlayout = { group = "androidx.swiperefreshlayout", name = "swiperefreshlayout", version.ref = "swiperefreshlayout" }
+# You might have other SQLDelight libraries here too
+
 
 
 [plugins]
@@ -53,3 +61,4 @@ ksp = { id = "com.google.devtools.ksp", version.ref = "ksp"}
 hilt = { id = "com.google.dagger.hilt.android", version.ref = "hilt" }
 compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlinSerialization" }
+sqldelight = {id = "app.cash.sqldelight", version.ref = "sqldelightver"}
